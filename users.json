@@ -1,0 +1,46 @@
+{
+  "mr": {
+    "role": "Cook",
+    "categories": [
+      "Wazwan"
+    ]
+  },
+  "mai": {
+    "role": "Cook",
+    "categories": [
+      "Appetizers"
+    ]
+  },
+  "mrane": {
+    "role": "Admin",
+    "categories": [
+      "Appetizers",
+      "Veg",
+      "Non Veg",
+      "Wazwan",
+      "Breads"
+    ]
+  },
+  "m": {
+    "role": "Cook",
+    "categories": [
+      "Non Veg",
+      "Veg"
+    ]
+  },
+  "Rakesh": {
+    "role": "Cook",
+    "categories": [
+      "Veg",
+      "Non Veg",
+      "Appetizers"
+    ]
+  },
+  "Nadeem": {
+    "role": "Cook",
+    "categories": [
+      "Wazwan",
+      "Appetizers"
+    ]
+  }
+}
