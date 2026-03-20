@@ -1,10 +1,65 @@
 import streamlit as st
 import pandas as pd
 import json
+import sqlite3
 from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from supabase import create_client
+
+SUPABASE_URL = "your_url"
+SUPABASE_KEY = "your_key"
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+DB_PATH = "data.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+        name TEXT PRIMARY KEY,
+        role TEXT,
+        categories TEXT
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS production (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_name TEXT,
+        category TEXT,
+        quantity REAL,
+        unit TEXT,
+        created_by TEXT,
+        timestamp TEXT
+    )''')
+    conn.commit()
+    conn.close()
+
+def save_user(name, role, categories):
+    supabase.table("users").upsert({
+        "name": name,
+        "role": role,
+        "categories": ",".join(categories)
+    }).execute()
+
+def load_users():
+    response = supabase.table("users").select("*").execute()
+    users = {}
+    for row in response.data:
+        users[row["name"]] = {
+            "role": row["role"],
+            "categories": row["categories"].split(",") if row["categories"] else []
+        }
+    return users
+
+def save_production(entry):
+    supabase.table("production").insert(entry).execute()
+
+def load_production():
+    response = supabase.table("production").select("*").execute()
+    import pandas as pd
+    return pd.DataFrame(response.data)
+
 @st.cache_data(ttl=300)
 def process_analytics_data(production_data):
     if not production_data:
@@ -105,27 +160,21 @@ MENU_DATA = {
 
 UNITS = ["kg", "portion", "pieces"]
 
+# Legacy JSON/CSV functions replaced by SQLite - remove after migration complete
 def load_users():
-    try:
-        with open('users.json', 'r') as f:
-            return json.load(f)
-    except:
-        return {}
+    return {}  # Placeholder
 
 def save_users(users):
-    with open('users.json', 'w') as f:
-        json.dump(users, f, indent=2)
+    pass  # Placeholder
 
 def load_production():
-    try:
-        return pd.read_csv('production_data.csv').to_dict('records')
-    except:
-        return []
+    return []  # Placeholder
 
 def save_production(data):
-    pd.DataFrame(data).to_csv('production_data.csv', index=False)
+    pass  # Placeholder
 
 def init_session():
+    init_db()
     if "users" not in st.session_state:
         st.session_state.users = load_users()
     if "production_data" not in st.session_state:
@@ -134,6 +183,7 @@ def init_session():
         st.session_state.user = None
     if "assigned_categories" not in st.session_state:
         st.session_state.assigned_categories = []
+
 
 
 def login_ui():
@@ -149,23 +199,16 @@ def login_ui():
             
             if st.button("Login", use_container_width=True, type="primary"):
                 if name.strip():
-                    users = st.session_state.users.copy()
-                    if name.strip() in users:
-                        user_data = users[name.strip()]
-                        st.session_state.user = {"name": name.strip(), "role": user_data["role"]}
-                        st.session_state.assigned_categories = user_data.get("categories", [])
-                        st.success(f"Welcome back {name.strip()}, logged in as {user_data['role']}.")
-                    else:
-                        user_data = {"role": role}
-                        if role == "Cook":
-                            cats = st.multiselect("Assign Categories", list(MENU_DATA.keys()), default=list(MENU_DATA.keys())[:2])
-                            user_data["categories"] = cats
-                            st.session_state.assigned_categories = cats
-                        users[name.strip()] = user_data
-                        st.session_state.users = users
-                        save_users(users)
-                        st.session_state.user = {"name": name.strip(), "role": role}
-                        st.success(f"New user {name.strip()} created and logged in!")
+                    users = load_users()
+                    if name.strip() not in users:
+                        cats = [] if role == "Admin" else st.multiselect("Assign Categories", list(MENU_DATA.keys()), default=list(MENU_DATA.keys())[:2], key="login_cats")
+                        save_user(name.strip(), role, cats)
+                    user_data = users.get(name.strip(), {"role": role, "categories": []})
+                    
+                    st.session_state.user = {"name": name.strip(), "role": user_data["role"]}
+                    st.session_state.assigned_categories = user_data.get("categories", [])
+                    st.session_state.users = load_users()
+                    st.success(f"Welcome {name.strip()}, logged in as {user_data['role']}.")
                     st.rerun()
                 else:
                     st.error("Please enter your name")
@@ -205,8 +248,8 @@ def cook_dashboard():
                     "created_by": st.session_state.user["name"],
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
-                st.session_state.production_data.append(entry)
-                save_production(st.session_state.production_data)
+                save_production(entry)
+                st.session_state.production_data = load_production()
                 st.success("Entry added!")
                 st.rerun()
 
@@ -217,7 +260,7 @@ def admin_dashboard():
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["Production Entries", "Manage Users", "Edit Cook Entries", "History & Analytics", "Advanced Analytics"])
     
     with tab5:
-        st.markdown("### 📊 Advanced Analytics Dashboard")
+        st.markdown("###  Advanced Analytics Dashboard")
         if not st.session_state.production_data:
             st.info("No data available for analytics.")
             st.stop()
