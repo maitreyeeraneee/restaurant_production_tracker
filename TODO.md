@@ -1,10 +1,15 @@
-# Matamaal UI Refactor TODO
+# Restaurant Production Tracker UI Polish TODO
 
-## Steps:
-- [x] 1. Update CSS to minimalist Kashmiri theme.
-- [x] 2. Restructure login_ui().
-- [x] 3. Refactor cook_dashboard().
-- [x] 4. Clean admin_dashboard().
-- [x] 5. Sidebar updates.
-- [x] 6. Tested app.
-- [x] 7. UI refactor complete: clean, structured, Kashmiri aesthetic (dark green #1B4332, beige #F5F5DC, gold accents), minimal/no clutter, proper containers/columns/spacing.
+## Admin Features (Complete):
+1. [x] Manage Users CRUD
+2. [x] Edit Cook Entries CRUD/grouped
+3. [x] Real-time sync
+4. [x] Clean UI structure
+
+## UI Refactor Plan:
+1. [ ] Rename branding to "Restaurant Production Tracker"
+2. [ ] Premium theme enhancements (cards, spacing, header)
+3. [ ] Test app
+4. [ ] User manual push to GitHub
+
+**Next: Implement UI changes in matamaal_production.py**

@@ -5,12 +5,12 @@ from datetime import datetime
 
 # Page config
 st.set_page_config(
-    page_title="Matamaal Production Tracking System",
+    page_title="Restaurant Production Tracker",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Minimal Kashmiri Theme CSS (dark green #1B4332, beige #F5F5DC, gold #DAA520)
+# Premium Restaurant Theme CSS (dark green #1B4332, beige #F5F5DC, soft gold #DAA520)
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&display=swap');
@@ -122,7 +122,7 @@ def init_session():
 
 
 def login_ui():
-    st.markdown("## Login")
+    st.markdown("### 🔐 Login")
     st.divider()
     
     with st.container(border=True):
@@ -156,7 +156,7 @@ def login_ui():
                     st.error("Please enter your name")
 
 def cook_dashboard():
-    st.markdown("## Production Entry")
+    st.markdown("### ➕ Production Entry")
     st.divider()
     
     if not st.session_state.assigned_categories:
@@ -196,10 +196,10 @@ def cook_dashboard():
                 st.rerun()
 
 def admin_dashboard():
-    st.markdown("## Admin Dashboard")
+    st.markdown("###  Admin Dashboard")
     st.divider()
     
-    tab1, tab2, tab3 = st.tabs(["Production Entries", "Manage Users", "History & Analytics"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Production Entries", "Manage Users", "Edit Cook Entries", "History & Analytics"])
     
     with tab1:
         if not st.session_state.production_data:
@@ -222,34 +222,131 @@ def admin_dashboard():
                 st.rerun()
     
     with tab2:
-        st.markdown("### Users")
-        users_df = pd.DataFrame([
-            {"Name": name, "Role": data["role"], "Categories": ", ".join(data.get("categories", []))} 
-            for name, data in st.session_state.users.items() if data["role"] == "Cook"
-        ])
-        if not users_df.empty:
-            st.dataframe(users_df, hide_index=True, use_container_width=True)
+        st.markdown("### Manage Users")
+        users_list = [{"Name": name, "Role": data["role"], "Categories": ", ".join(data.get("categories", []))} 
+                      for name, data in st.session_state.users.items()]
+        users_df = pd.DataFrame(users_list)
+        if users_df.empty:
+            st.info("No users yet.")
         else:
-            st.info("No cooks yet.")
+            st.dataframe(users_df, hide_index=True, use_container_width=True)
         
-        st.markdown("**Add Cook**")
-        col_new1, col_new2 = st.columns(2)
+        st.markdown("---")
+        
+        # Edit/Delete each user
+        for idx, row in users_df.iterrows():
+            name = row["Name"]
+            if name in st.session_state.users:
+                data = st.session_state.users[name]
+                with st.expander(f" Edit /  Delete {name} ({data['role']})", expanded=False):
+                    col_role, col_cats = st.columns([1, 4])
+                    with col_role:
+                        role_idx = 0 if data["role"] == "Cook" else 1
+                        new_role = st.selectbox("Role", ["Cook", "Admin"], index=role_idx, key=f"role_edit_{name}")
+                    with col_cats:
+                        is_cook = new_role == "Cook"
+                        new_cats = st.multiselect("Categories", list(MENU_DATA.keys()), 
+                                                  default=data.get("categories", []) if is_cook else [],
+                                                  key=f"cats_edit_{name}")
+                    col_up, col_del = st.columns(2)
+                    with col_up:
+                        if st.button(" Update", key=f"update_user_{name}"):
+                            st.session_state.users[name] = {"role": new_role, "categories": new_cats}
+                            save_users(st.session_state.users)
+                            st.success(f"Updated {name}!")
+                            st.rerun()
+                    with col_del:
+                        if st.button(" Delete", key=f"delete_user_{name}"):
+                            if st.session_state.user and st.session_state.user["name"] == name:
+                                st.warning("Cannot delete logged-in user!")
+                            else:
+                                del st.session_state.users[name]
+                                save_users(st.session_state.users)
+                                st.success(f"Deleted {name}!")
+                                st.rerun()
+        
+        # Add new user
+        st.markdown("### ➕ Add New User")
+        col_new1, col_new2, col_new3 = st.columns([1.5, 1.5, 3])
         with col_new1:
-            new_cook = st.text_input("Cook Name")
+            new_name = st.text_input("Name")
         with col_new2:
+            new_role = st.selectbox("Role", ["Cook", "Admin"])
+        with col_new3:
             new_cats = st.multiselect("Categories", list(MENU_DATA.keys()))
-        if st.button("Add Cook", type="primary", use_container_width=True):
-            if new_cook.strip() and new_cats:
-                st.session_state.users[new_cook.strip()] = {"role": "Cook", "categories": new_cats}
-                save_users(st.session_state.users)
-                st.success("Cook added!")
-                st.rerun()
-        
-        if st.button("Save Changes", type="secondary", use_container_width=True):
-            save_users(st.session_state.users)
-            st.success("Users updated!")
+        if st.button("Add User", type="primary", use_container_width=True):
+            if new_name.strip():
+                if new_role == "Admin" or new_cats:
+                    st.session_state.users[new_name.strip()] = {"role": new_role, "categories": new_cats}
+                    save_users(st.session_state.users)
+                    st.success("User added!")
+                    st.rerun()
+                else:
+                    st.error("Assign categories for Cook.")
+            else:
+                st.error("Enter name.")
 
     with tab3:
+        st.markdown("### Edit Cook Entries")
+        if not st.session_state.production_data:
+            st.info("No production entries yet.")
+            st.stop()
+        
+        df = pd.DataFrame(st.session_state.production_data)
+        if df.empty:
+            st.info("No entries.")
+        else:
+            cooks = sorted(df['created_by'].unique())
+            selected_cook = st.selectbox("Select Cook", cooks)
+            
+            cook_entries = df[df['created_by'] == selected_cook]
+            if cook_entries.empty:
+                st.info(f"No entries for {selected_cook}")
+            else:
+                st.markdown(f"**Entries by {selected_cook}**")
+                st.dataframe(cook_entries[['item_name', 'category', 'quantity', 'unit', 'timestamp']], hide_index=True, use_container_width=True)
+                
+                st.markdown("---")
+                
+                # Edit/Delete each entry
+                for idx, entry in cook_entries.iterrows():
+                    with st.expander(f" Edit / Delete: {entry['item_name']} ({entry['quantity']} {entry['unit']})", expanded=False):
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            new_category = st.selectbox("Category", list(MENU_DATA.keys()), index=list(MENU_DATA.keys()).index(entry['category']), key=f"cat_{idx}")
+                        with col2:
+                            menu_items = MENU_DATA[new_category]
+                            new_item = st.selectbox("Item", menu_items, index=menu_items.index(entry['item_name']), key=f"item_{idx}")
+                        with col3:
+                            new_qty = st.number_input("Quantity", value=float(entry['quantity']), step=0.1, key=f"qty_{idx}")
+                        with col4:
+                            new_unit = st.selectbox("Unit", UNITS, index=UNITS.index(entry['unit']), key=f"unit_{idx}")
+                        
+                        col_edit, col_delete = st.columns(2)
+                        with col_edit:
+                            if st.button(" Update", key=f"edit_entry_{idx}"):
+                                # Update in session_data
+                                for i, e in enumerate(st.session_state.production_data):
+                                    if e['timestamp'] == entry['timestamp'] and e['created_by'] == selected_cook:
+                                        st.session_state.production_data[i] = {
+                                            **e,
+                                            'item_name': new_item,
+                                            'category': new_category,
+                                            'quantity': new_qty,
+                                            'unit': new_unit
+                                        }
+                                        break
+                                save_production(st.session_state.production_data)
+                                st.success("Entry updated!")
+                                st.rerun()
+                        with col_delete:
+                            if st.button(" Delete", key=f"del_entry_{idx}"):
+                                st.session_state.production_data = [e for e in st.session_state.production_data if not (e['timestamp'] == entry['timestamp'] and e['created_by'] == selected_cook)]
+                                save_production(st.session_state.production_data)
+                                st.success("Entry deleted!")
+                                st.rerun()
+    
+    with tab4:
         st.subheader("History & Analytics")
         if not st.session_state.production_data:
             st.info("No data available")
@@ -303,18 +400,22 @@ def admin_dashboard():
 def main():
     init_session()
     
+    # Header
+    st.markdown("# Restaurant Production Tracker")
+    st.divider()
+    
     # Sidebar
     with st.sidebar:
-        st.markdown("## User Panel")
+        st.markdown("## 👤 User Panel")
         if st.session_state.user:
             st.markdown(f"**{st.session_state.user['role']}**: {st.session_state.user['name']}")
-            if st.button("Logout", use_container_width=True):
+            if st.button(" Logout", use_container_width=True):
                 for key in ["user", "assigned_categories"]:
                     del st.session_state[key]
                 st.rerun()
         st.divider()
         if st.session_state.production_data:
-            st.metric("Total Entries", len(st.session_state.production_data))
+            st.metric("📊 Total Entries", len(st.session_state.production_data))
     
     # Main content
     if not st.session_state.user:
