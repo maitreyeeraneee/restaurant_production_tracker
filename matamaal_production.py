@@ -253,27 +253,52 @@ def admin_dashboard():
         st.subheader("History & Analytics")
         if not st.session_state.production_data:
             st.info("No data available")
-            st.stop()
-        
-        df = pd.DataFrame(st.session_state.production_data)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
-        selected_date = st.date_input("Select Date", value=datetime.now().date())
-        
-        filtered_df = df[df['timestamp'].dt.date == selected_date]
-        
-        if filtered_df.empty:
-            st.info("No entries for this date")
         else:
-            st.dataframe(filtered_df[['item_name', 'category', 'quantity', 'unit', 'created_by', 'timestamp']], hide_index=True, use_container_width=True)
+            df = pd.DataFrame(st.session_state.production_data)
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
             
-            csv = filtered_df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="Download CSV",
-                data=csv,
-                file_name=f"production_{selected_date}.csv",
-                mime="text/csv"
-            )
+            # Filters
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                start_date = st.date_input("Start Date", value=df['timestamp'].dt.date.min())
+            with col2:
+                end_date = st.date_input("End Date", value=datetime.now().date())
+            with col3:
+                items = sorted(df['item_name'].unique())
+                selected_item = st.selectbox("Item", ["All"] + items)
+            with col4:
+                sort_by = st.selectbox("Sort by", ["timestamp", "quantity", "item_name"])
+            
+            # Filter
+            filtered_df = df[(df['timestamp'].dt.date >= start_date) & (df['timestamp'].dt.date <= end_date)]
+            if selected_item != "All":
+                filtered_df = filtered_df[filtered_df['item_name'] == selected_item]
+            
+            # Sort
+            filtered_df = filtered_df.sort_values(sort_by, ascending=False)
+            
+            if filtered_df.empty:
+                st.info("No entries match the filters")
+            else:
+                st.markdown("**Filtered Entries**")
+                st.dataframe(filtered_df[['item_name', 'category', 'quantity', 'unit', 'created_by', 'timestamp']], hide_index=True, use_container_width=True)
+                
+                col_tot1, col_tot2 = st.columns(2)
+                with col_tot1:
+                    st.metric("Total Quantity", filtered_df['quantity'].sum())
+                
+                csv = filtered_df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download CSV", 
+                    data=csv, 
+                    file_name=f"production_{start_date}_to_{end_date}.csv",
+                    mime="text/csv"
+                )
+                
+                # Monthly Insights
+                st.markdown("**Monthly Summary**")
+                monthly = filtered_df.groupby(filtered_df['timestamp'].dt.to_period('M').astype(str))[['item_name', 'category', 'quantity']].agg({'quantity': 'sum'}).reset_index()
+                st.dataframe(monthly, hide_index=True, use_container_width=True)
 
 def main():
     init_session()
