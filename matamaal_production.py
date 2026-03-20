@@ -199,7 +199,7 @@ def admin_dashboard():
     st.markdown("## Admin Dashboard")
     st.divider()
     
-    tab1, tab2 = st.tabs(["Production Entries", "Manage Users"])
+    tab1, tab2, tab3 = st.tabs(["Production Entries", "Manage Users", "History & Analytics"])
     
     with tab1:
         if not st.session_state.production_data:
@@ -248,6 +248,32 @@ def admin_dashboard():
         if st.button("Save Changes", type="secondary", use_container_width=True):
             save_users(st.session_state.users)
             st.success("Users updated!")
+
+    with tab3:
+        st.subheader("History & Analytics")
+        if not st.session_state.production_data:
+            st.info("No data available")
+            st.stop()
+        
+        df = pd.DataFrame(st.session_state.production_data)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        
+        selected_date = st.date_input("Select Date", value=datetime.now().date())
+        
+        filtered_df = df[df['timestamp'].dt.date == selected_date]
+        
+        if filtered_df.empty:
+            st.info("No entries for this date")
+        else:
+            st.dataframe(filtered_df[['item_name', 'category', 'quantity', 'unit', 'created_by', 'timestamp']], hide_index=True, use_container_width=True)
+            
+            csv = filtered_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="Download CSV",
+                data=csv,
+                file_name=f"production_{selected_date}.csv",
+                mime="text/csv"
+            )
 
 def main():
     init_session()
