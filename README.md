@@ -1,6 +1,12 @@
 # Restaurant Production Tracker
 
+
+
 **Real-time kitchen production tracking for restaurants – Built to solve a real-world problem**
+
+*live link* - https://restaurant-p-tracker.streamlit.app/
+
+---
 
 [![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=Streamlit&logoColor=white)](https://streamlit.io/)
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=Python&logoColor=white)](https://python.org/)
@@ -43,7 +49,7 @@ I built **Restaurant Production Tracker** – a **secure, real-time web app** th
 | 🌐 **Cloud Backend** | ✅ | ✅ |
 | 🎨 **Premium UI/UX** | ✅ | ✅ |
 
-**Traditional Kashmiri Restaurant Menu** pre-loaded (Appetizers, Veg, Non-Veg, Wazwan, Breads).
+**Traditional Kashmiri Restaurant Menu** (sample) pre-loaded (Appetizers, Veg, Non-Veg, Wazwan, Breads).
 
 ---
 
